@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 class TSP:
 
     def __init__(self, n, random_state=None, width_x=1, width_y=1):
@@ -42,4 +41,3 @@ class TSP:
         fig, ax = plt.subplots()
         ax.imshow(self.distances, cmap="Reds")
         plt.show()
-

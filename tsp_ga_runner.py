@@ -39,11 +39,15 @@ def crossover(random_state, p1, p2):
     """
     if random_state is None:
         random_state = np.random.RandomState()
+
+    # 🔧 Asegura listas (si entran como np.ndarray)
+    p1 = p1.tolist() if hasattr(p1, "tolist") else list(p1)
+    p2 = p2.tolist() if hasattr(p2, "tolist") else list(p2)
+
     n = len(p1)
     if n < 2:
         return [p1[:], p2[:]]
 
-    # intentar cortes distintos si saliera trivial
     for _ in range(3):
         l = random_state.randint(0, n - 1)
         r = random_state.randint(l + 1, n)
@@ -72,7 +76,7 @@ def crossover(random_state, p1, p2):
             return [c1, c2]
 
     return [c1, c2] # Returns list: A list of size 2 with the offsprings of the parents p1 and p2 as entries, which are also lists themselves
-    
+
 def mutate(random_state, i):
     """
     Args:
@@ -84,17 +88,20 @@ def mutate(random_state, i):
     """
     if random_state is None:
         random_state = np.random.RandomState()
-    n = len(i)
+
+    seq = i.tolist() if hasattr(i, "tolist") else list(i)
+    n = len(seq)
     if n < 2:
-        return i[:]
+        return seq[:]
     a = random_state.randint(0, n)
     b = random_state.randint(0, n)
     while b == a:
         b = random_state.randint(0, n)
-    m = i[:]
+
+    m = seq[:]      
     m[a], m[b] = m[b], m[a]
 
-    return m # Returns list: a mutant copy of the given individual `i`
+    return m # Returns list: a mutant copy of the given individual `i`         
 
 def run_genetic_search_for_tsp(tsp, timeout):
     """

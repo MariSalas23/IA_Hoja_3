@@ -21,6 +21,14 @@ class GeneticSearch:
     def reset(self): # Crea la población inicial y deja el mejor
 
         self.population = self.init(self.population_size)
+
+        norm_pop = [] # Normalizar listas
+        for ind in self.population:
+            if hasattr(ind, "tolist"):
+                ind = ind.tolist()
+            norm_pop.append(ind)
+        self.population = norm_pop
+
         self._best = self.population[0]
         for ind in self.population[1:]:
             if self.better(ind, self._best):
@@ -35,7 +43,7 @@ class GeneticSearch:
     @property
     def active(self):
 
-        return len(self.population) > 0 and self.population is not None # Aparece activo si hay población
+        return self.population is not None and len(self.population) > 0 # Aparece activo si hay población
 
     def step(self):
         # Crossover de todos los pares de padres
@@ -44,13 +52,23 @@ class GeneticSearch:
         for i in range(len(parents)):
             for j in range(i + 1, len(parents)):
                 off = self.crossover(parents[i], parents[j])
-                if not off:
+
+                if off is None:
                     continue
-                for kid in off:
-                    # 2) Mutación (si aplica)
+                try:
+                    off_list = list(off)
+                except TypeError:
+                    off_list = [off]
+
+                for kid in off_list:
+                    if hasattr(kid, "tolist"):
+                        kid = kid.tolist()
                     if self.mutate is not None:
                         kid = self.mutate(kid)
                     children.append(kid)
+
+        if len(children) == 0:
+            return
 
         candidates = parents + children # population_size
 
@@ -62,8 +80,11 @@ class GeneticSearch:
                 if self.better(ind, other):
                     wins += 1
             return -wins  # Más victorias es mejor
+        
+        indexed = list(enumerate(candidates))
+        indexed.sort(key=lambda t: (wins_count(t[1]), -t[0]))  # sort asc con clave compuesta
+        candidates_sorted = [ind for _, ind in indexed]
 
-        candidates_sorted = sorted(candidates, key=wins_count)
         self.population = candidates_sorted[: self.population_size]
 
         if self._best is None or self.better(self.population[0], self._best): # Actualiza al mejor conocido
