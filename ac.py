@@ -69,6 +69,54 @@ def ac3(bcn):
 
     return (domains, constraints), True # Returns (bcn', feasible)
 
+def _build_neighbors(constraints):
+
+    neigh = {} # Mapa de vecinos
+    for (a, b) in constraints.keys():
+        if a not in neigh: neigh[a] = set()
+        if b not in neigh: neigh[b] = set()
+        neigh[a].add(b)
+        neigh[b].add(a)
+    return neigh
+
+def ac3_from(bcn, start_vars, neighbors):
+
+    domains0, constraints = bcn
+    domains = {v: d[:] for v, d in domains0.items()}
+
+    queue = deque()
+    for X in start_vars:
+        for Y in neighbors.get(X, ()):
+            queue.append((Y, X))
+
+    while queue:
+        Xi, Xj = queue.popleft()
+        D_i_prime, changed = revise((domains, constraints), Xi, Xj)
+        if changed:
+            domains[Xi] = D_i_prime
+            if len(D_i_prime) == 0:
+                return (domains, constraints), False  # Inconsistente
+            for Xk in neighbors.get(Xi, ()):
+                if Xk != Xj:
+                    queue.append((Xk, Xi))
+
+    return (domains, constraints), True
+
+def _order_values_lcv(dom, var, neighbors):
+
+    vals = dom[var]
+    if len(vals) <= 1:
+        return vals[:]
+    neighs = neighbors.get(var, ())
+    freq = {}
+    for v in vals:
+        f = 0
+        for nb in neighs:
+            if v in dom[nb]:
+                f += 1
+        freq[v] = f
+    return sorted(vals, key=lambda x: freq[x])
+
 def get_tree_search_for_bcn(bcn, phi=None):
     """
         Generates a PathlessTreeSearch that can find a solution in the search space described by the BCN.
@@ -91,9 +139,11 @@ def get_tree_search_for_bcn(bcn, phi=None):
             if len(valores) != 1: # Solucuión parcial
                 return False
         return True # Si ninguno falla todas las variables están fijadas a un único valor
-
+    
     if not feasible:   
         return PathlessTreeSearch(n0=root_domains, succ=lambda _: [], goal=is_final), (lambda _: {}) # Sin solución
+
+    neighbors = _build_neighbors(constraints)
 
     def select_variable(dom):
         if phi is not None:
@@ -109,15 +159,15 @@ def get_tree_search_for_bcn(bcn, phi=None):
         if var is None:
             return []
         children = []
-        for val in dom[var]:
+        for val in _order_values_lcv(dom, var, neighbors):  # 👈 LCV
             new_dom = {k: vals[:] for k, vals in dom.items()}
             new_dom[var] = [val]
-            (bcn2, feas2) = ac3((new_dom, constraints))
+            (bcn2, feas2) = ac3_from((new_dom, constraints), start_vars=[var], neighbors=neighbors) 
             if feas2:
                 children.append(bcn2[0])
         return children
 
-    search = PathlessTreeSearch(n0=root_domains, succ=succ, goal=is_final, better=None, order="bfs") # search is a PathlessTreeSearch object
+    search = PathlessTreeSearch(n0=root_domains, succ=succ, goal=is_final, better=None, order="dfs") # search is a PathlessTreeSearch object
     decoder = lambda node: {k: v[0] for k, v in node.items()} # decoder is a function to decode a node to an assignment
 
     return search, decoder # Returns (search, decoder)
